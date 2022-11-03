@@ -116,10 +116,10 @@ def state_counter(currState):
                     currState.destroyerCount += 1
                     
                 elif y + 2 < columns and currState.board[x][y] == 'L' and currState.board[x][y+1] == 'M' and currState.board[x][y+2] == 'R':
-                    currState.cruizerCount += 1
+                    currState.cruiserCount += 1
                 
                 elif x + 2 < rows and currState.board[x][y] == 'T' and currState.board[x+1][y] == 'M' and currState.board[x+2][y] == 'B':
-                    currState.cruizerCount += 1
+                    currState.cruiserCount += 1
                 
                 elif y + 3 < columns and currState.board[x][y] == 'L' and currState.board[x][y+1] == 'M' and currState.board[x][y+2] == 'M' and currState.board[x][y+3] == 'R':
                     currState.battleshipCount += 1
@@ -252,7 +252,7 @@ def check_if_row_column_constraints_violated(currState):
     # rowTotal = [sum(x) for x in currState.board]
     # colTotal = map(sum,zip(*currState.board))
     for x in range(rows):
-        if currState.rowPieceCounter[x] > rowConstraint[x] or currState.columnPieceCounter[x] == columnConstraint[x]:
+        if currState.rowPieceCounter[x] > rowConstraint[x] or currState.columnPieceCounter[x] > columnConstraint[x]:
             return True
     
     return False
@@ -291,6 +291,10 @@ def check_if_grid_full(currState):
 
 # Get all possible moves
 def get_all_possible_moves(currState):
+    
+    # Reset all possible moves
+    currState.possibleSpots = {"Submarines": [], "Destroyers": [], "Cruisers": [], "Battleships": []}
+    
     for x in range(rows):
         for y in range(columns):
             # There is a 'no hint spot' here
@@ -337,22 +341,8 @@ def return_MRV_variable(currState):
     minVariable = ''
     
     for ship in currState.possibleSpots:
-        if ship == 'Submarines':
-            if currState.submarineCount == ships['Submarines']:
-                currState.possibleSpots[ship] = []
-                continue
-        elif ship == 'Destroyers':
-            if currState.submarineCount == ships['Destroyers']:
-                currState.possibleSpots[ship] = []
-                continue
-        elif ship == 'Cruisers':
-            if currState.submarineCount == ships['Cruisers']:
-                currState.possibleSpots[ship] = []
-                continue
-        elif ship == 'Battleships':
-            if currState.submarineCount == ships['Battleships']:
-                currState.possibleSpots[ship] = []
-                continue
+        if len(currState.possibleSpots[ship]) == 0:
+            continue
             
         if minValue > len(currState.possibleSpots[ship]):
             minValue = len(currState.possibleSpots[ship])
@@ -475,7 +465,7 @@ def enforce_GAC(currState):
     
     
 # GAC Algorithm
-def algorithm_GAC(currState):
+def algorithm_GAC(currState):    
     # If all variables are assigned:
     if check_if_row_column_constraints_met(currState) and check_if_piece_constraints_met(currState) and check_if_grid_full(currState):
         return currState
@@ -512,8 +502,13 @@ def algorithm_GAC(currState):
             else:
                 return result
          
-                
-         
+    return result
+
+
+# def GAC_Enforce:
+    
+    
+           
 # FC Algorithm
 # def algorithm_FC(currState):
 #     # If all variables are assigned:
