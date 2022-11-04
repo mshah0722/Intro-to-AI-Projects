@@ -25,7 +25,6 @@ class State:
         self.cruiserCount = 0
         self.battleshipCount = 0
         self.possibleSpots = {"Submarines": [], "Destroyers": [], "Cruisers": [], "Battleships": []}
-        #self.evaluationValue = 0
 
     # Process the initial board configuration file
     def process_input(self, file):
@@ -86,7 +85,7 @@ class State:
         openFile.close()
         return
 
-# Counter function will count non water and non 0 pieces
+# Counter function will count all the important stats for each state
 def state_counter(currState):
     
     # First, reset all counts
@@ -157,7 +156,7 @@ def pre_process_by_piece(currState):
     for x in range(rows):
         for y in range(columns):
             
-            # If current square is a no hint square
+            # If current square is a no hint square or water square
             if currState.board[x][y] == '0' or currState.board[x][y] == 'W':
                 continue
             
@@ -198,7 +197,7 @@ def pre_process_by_piece(currState):
                             currState.board[a][b] = 'W'
             
             # If current square is a bottom piece square                           
-            elif currState.board[x][y] == 'T':
+            elif currState.board[x][y] == 'B':
                 for a in range(x-1, x+2):
                     for b in range(y-1, y+2):
                         if a >= 0 and a < rows and b >= 0 and b < columns:
@@ -207,7 +206,7 @@ def pre_process_by_piece(currState):
                             currState.board[a][b] = 'W'
             
             # If current square is a middle piece square                           
-            elif currState.board[x][y] == 'T':
+            elif currState.board[x][y] == 'M':
                 for a in range(x-1, x+2):
                     for b in range(y-1, y+2):
                         if a >= 0 and a < rows and b >= 0 and b < columns:
@@ -220,32 +219,18 @@ def pre_process_by_piece(currState):
 
 #https://discord.com/channels/892816026855690250/892816026855690254/1037403661741084672       
 
-# Check if this piece is surrounded by water
-def check_if_surrounded_by_water(currState, x, y):
-    for a in range(x-1, x+2):
-        for b in range(y-1, y+2):
-            if a >= 0 and a < rows and b >= 0 and b < columns:
-                if a == x and b == y:
-                    continue
-                if currState.board[a][b] != 'W':
-                    return False
-    return True
-
-# Fill in the obvious submarine spots
-def fill_in_submarine_spots(currState):
-    for x in range(rows):
-        for y in range(columns):
-            
-            # If current square is a no hint square
-            if currState.board[x][y] == '0':
-                if check_if_surrounded_by_water(currState, x, y):
-                    if currState.rowPieceCounter[x] < rowConstraint[x] and currState.columnPieceCounter[y] < columnConstraint[y] and currState.submarineCount < ships['Submarines']:
-                        currState.board[x][y] = 'S'
-                        currState.rowPieceCounter[x] += 1 
-                        currState.columnPieceCounter[y] += 1
-                        currState.totalPieceCount += 1
-                        currState.totalEmptySpots -= 1
-                        currState.submarineCount += 1
+# All preprocessing steps in one easy function
+def run_all_preprocessing(currState):
+    # First run of pruning all values of grid with preprocessing steps
+    state_counter(currState)
+    pre_process_by_row_and_col(currState)
+    pre_process_by_piece(currState)
+    
+    # Second run of pruning all values of grid with preprocessing steps
+    state_counter(currState)
+    pre_process_by_row_and_col(currState)
+    pre_process_by_piece(currState)
+    state_counter(currState)
 
 # Check if any row or column constraints are violated
 def check_if_row_column_constraints_violated(currState):
@@ -303,39 +288,105 @@ def get_all_possible_moves(currState):
                     # This is added to possible submarine locations
                     currState.possibleSpots['Submarines'].append([[x, y]])
                 
-                if y + 1 < columns and currState.board[x][y] == '0' and currState.board[x][y+1] == '0':
+                if ((y + 1 < columns) and (currState.board[x][y] == '0') and ((currState.board[x][y+1] == '0') or (currState.board[x][y+1] == 'R'))):
                     if currState.destroyerCount < ships['Destroyers']:
                         # This is added to possible destroyers locations with horizontal alignment
                         currState.possibleSpots['Destroyers'].append([[x, y], [x, y+1]])
                     
-                    if y + 2 < columns and currState.board[x][y] == '0' and currState.board[x][y+1] == '0' and currState.board[x][y+2] == '0':
-                        if currState.cruiserCount < ships['Cruisers']:
-                            # This is added to possible cruisers locations with horizontal alignment
-                            currState.possibleSpots['Cruisers'].append([[x, y], [x, y+1], [x, y+2]])
+                if ((y + 2 < columns) and (currState.board[x][y] == '0') and ((currState.board[x][y+1] == '0') or (currState.board[x][y+1] == 'M')) and ((currState.board[x][y+2] == '0') or (currState.board[x][y+2] == 'R'))):
+                    if currState.cruiserCount < ships['Cruisers']:
+                        # This is added to possible cruisers locations with horizontal alignment
+                        currState.possibleSpots['Cruisers'].append([[x, y], [x, y+1], [x, y+2]])
                         
-                        if y + 3 < columns and currState.board[x][y] == '0' and currState.board[x][y+1] == '0' and currState.board[x][y+2] == '0' and currState.board[x][y+3] == '0':
-                            if currState.battleshipCount < ships['Battleships']:
-                                # This is added to possible battleship locations with horizontal alignment
-                                currState.possibleSpots['Battleships'].append([[x, y], [x, y+1], [x, y+2], [x, y+3]])
+                if ((y + 3 < columns) and (currState.board[x][y] == '0') and ((currState.board[x][y+1] == '0') or (currState.board[x][y+1] == 'M')) and ((currState.board[x][y+2] == '0') or (currState.board[x][y+2] == 'M')) and ((currState.board[x][y+3] == '0') or (currState.board[x][y+3] == 'R'))):
+                    if currState.battleshipCount < ships['Battleships']:
+                        # This is added to possible battleship locations with horizontal alignment
+                        currState.possibleSpots['Battleships'].append([[x, y], [x, y+1], [x, y+2], [x, y+3]])
                 
-                if x + 1 < rows and currState.board[x][y] == '0' and currState.board[x+1][y] == '0':
+                if ((x + 1 < rows) and (currState.board[x][y] == '0') and ((currState.board[x+1][y] == '0') or (currState.board[x+1][y] == 'B'))):
                     if currState.destroyerCount < ships['Destroyers']:
                         # This is added to possible destroyers locations with vertical alignment
                         currState.possibleSpots['Destroyers'].append([[x, y], [x+1, y]])
                 
-                    if x + 2 < rows and currState.board[x][y] == '0' and currState.board[x+1][y] == '0' and currState.board[x+2][y] == '0':
-                        if currState.cruiserCount < ships['Cruisers']:
-                            # This is added to possible cruisers locations with vertical alignment
-                            currState.possibleSpots['Cruisers'].append([[x, y], [x+1, y], [x+2, y]])
+                if ((x + 2 < rows) and (currState.board[x][y] == '0') and ((currState.board[x+1][y] == '0') or (currState.board[x+1][y] == 'M')) and ((currState.board[x+2][y] == '0') or (currState.board[x+2][y] == 'B'))):
+                    if currState.cruiserCount < ships['Cruisers']:
+                        # This is added to possible cruisers locations with vertical alignment
+                        currState.possibleSpots['Cruisers'].append([[x, y], [x+1, y], [x+2, y]])
                 
-                        if x + 3 < rows and currState.board[x][y] == '0' and currState.board[x+1][y] == '0' and currState.board[x+2][y] == '0' and currState.board[x+3][y] == '0':
-                            if currState.battleshipCount < ships['Battleships']:
-                                # This is added to possible battleship locations with vertical alignment
-                                currState.possibleSpots['Battleships'].append([[x, y], [x+1, y], [x+2, y], [x+3, y]])
+                if ((x + 3 < rows) and (currState.board[x][y] == '0') and ((currState.board[x+1][y] == '0') or (currState.board[x+1][y] == 'M')) and ((currState.board[x+2][y] == '0') or (currState.board[x+2][y] == 'M')) and ((currState.board[x+3][y] == '0') or (currState.board[x+3][y] == 'B'))):
+                    if currState.battleshipCount < ships['Battleships']:
+                        # This is added to possible battleship locations with vertical alignment
+                        currState.possibleSpots['Battleships'].append([[x, y], [x+1, y], [x+2, y], [x+3, y]])
+            
+            # There is a 'Left' here but the exact square to the right is '0'
+            elif y + 1 < columns and currState.board[x][y] == 'L' and currState.board[x][y+1] == '0':                               
+                if currState.destroyerCount < ships['Destroyers']:
+                    # This is added to possible destroyers locations with horizontal alignment
+                    currState.possibleSpots['Destroyers'].append([[x, y], [x, y+1]])
+                
+                if ((y + 2 < columns) and ((currState.board[x][y+2] == '0') or (currState.board[x][y+2] == 'R'))):
+                    if currState.cruiserCount < ships['Cruisers']:
+                        # This is added to possible destroyers locations with horizontal alignment
+                        currState.possibleSpots['Cruisers'].append([[x, y], [x, y+1], [x, y+2]])
+                
+                if ((y + 3 < columns) and ((currState.board[x][y+2] == '0') or (currState.board[x][y+2] == 'M')) and ((currState.board[x][y+3] == '0') or (currState.board[x][y+3] == 'R'))):
+                    if currState.battleshipCount < ships['Battleships']:
+                        # This is added to possible destroyers locations with horizontal alignment
+                        currState.possibleSpots['Battleships'].append([[x, y], [x, y+1], [x, y+2], [x, y+3]])
+                        
+            # There is a 'Left' here but the exact 2nd square to the right is '0'
+            elif y + 2 < columns and currState.board[x][y] == 'T' and currState.board[x][y+1] == 'M' and currState.board[x][y+2] == '0':                               
+                if currState.cruiserCount < ships['Cruisers']:
+                    # This is added to possible destroyers locations with horizontal alignment
+                    currState.possibleSpots['Cruisers'].append([[x, y], [x, y+1], [x, y+2]])
+                
+                if ((y + 3 < columns) and ((currState.board[x][y+3] == '0') or (currState.board[x][y+3] == 'B'))):
+                    if currState.battleshipCount < ships['Battleships']:
+                        # This is added to possible destroyers locations with horizontal alignment
+                        currState.possibleSpots['Battleships'].append([[x, y], [x, y+1], [x, y+2], [x, y+3]])
+            
+            # There is a 'Left' here but the exact 3rd square to the right is '0'
+            elif y + 3 < columns and currState.board[x][y] == 'T' and currState.board[x][y+1] == 'M' and currState.board[x][y+2] == 'M' and currState.board[x][y+3] == '0':                               
+                if currState.battleshipCount < ships['Battleships']:
+                    # This is added to possible destroyers locations with horizontal alignment
+                    currState.possibleSpots['Battleships'].append([[x, y], [x, y+1], [x, y+2], [x, y+3]])
+                        
+            # There is a 'top' here but the exact square below is 0
+            elif x + 1 < rows and currState.board[x][y] == 'T' and currState.board[x+1][y] == '0':                               
+                if currState.destroyerCount < ships['Destroyers']:
+                    # This is added to possible destroyers locations with vertical alignment
+                    currState.possibleSpots['Destroyers'].append([[x, y], [x+1, y]])
+                
+                if ((x + 2 < rows) and ((currState.board[x+2][y] == '0') or (currState.board[x+2][y] == 'B'))):
+                    if currState.cruiserCount < ships['Cruisers']:
+                        # This is added to possible cruisers locations with vertical alignment
+                        currState.possibleSpots['Cruisers'].append([[x, y], [x+1, y], [x+2, y]])
+                
+                if ((x + 3 < rows) and ((currState.board[x+2][y] == '0') or (currState.board[x+2][y] == 'M')) and ((currState.board[x+3][y] == '0') or (currState.board[x+3][y] == 'B'))):
+                    if currState.battleshipCount < ships['Battleships']:
+                        # This is added to possible battleship locations with vertical alignment
+                        currState.possibleSpots['Battleships'].append([[x, y], [x+1, y], [x+2, y], [x+3, y]])
+                        
+            # There is a 'top' here but the exact 2 square below is 0
+            elif x + 2 < rows and currState.board[x][y] == 'T' and currState.board[x+1][y] == 'M' and currState.board[x+2][y] == '0':                               
+                if currState.cruiserCount < ships['Cruisers']:
+                    # This is added to possible cruisers locations with vertical alignment
+                    currState.possibleSpots['Cruisers'].append([[x, y], [x+1, y], [x+2, y]])
+                
+                if ((x + 3 < rows) and ((currState.board[x+3][y] == '0') or (currState.board[x+3][y] == 'B'))):
+                    if currState.battleshipCount < ships['Battleships']:
+                        # This is added to possible battleship locations with vertical alignment
+                        currState.possibleSpots['Battleships'].append([[x, y], [x+1, y], [x+2, y], [x+3, y]])
+            
+            # There is a 'top' here but the exact 3 square below is 0
+            elif x + 3 < rows and currState.board[x][y] == 'T' and currState.board[x+1][y] == 'M' and currState.board[x+2][y] == 'M' and currState.board[x+3][y] == '0':                               
+                if currState.battleshipCount < ships['Battleships']:
+                    # This is added to possible battleship locations with vertical alignment
+                    currState.possibleSpots['Battleships'].append([[x, y], [x+1, y], [x+2, y], [x+3, y]])
 
     return
 
-# Return an unassigned variable with the smallest possible values
+# Return an unassigned variable with the minimum remain values
 def return_MRV_variable(currState):
     minValue = inf
     minVariable = ''
@@ -460,13 +511,8 @@ def enforce_GAC(currState):
     elif currState.battleshipCount != ships['Battleships'] and len(currState.possibleSpots["Battleships"]) == 0:
         return "DWO"
     
-    return algorithm_GAC(currState)
-    
-    
-    
-# GAC Algorithm
-def algorithm_GAC(currState):    
-    # If all variables are assigned:
+    # Exit Condition
+    # If all variables are assigned
     if check_if_row_column_constraints_met(currState) and check_if_piece_constraints_met(currState) and check_if_grid_full(currState):
         return currState
     
@@ -480,13 +526,7 @@ def algorithm_GAC(currState):
         insert_ship_at_position(newState, chosenShip, spot)
         
         # Prune all values of grid with preprocessing steps
-        state_counter(newState)
-        pre_process_by_row_and_col(newState)
-        pre_process_by_piece(newState)
-        state_counter(newState)
-        fill_in_submarine_spots(newState)
-        pre_process_by_row_and_col(newState)
-        state_counter(newState)
+        run_all_preprocessing(newState)
         
         # Go through all the constraints and make sure they aren't violated
         if check_if_row_column_constraints_violated(newState) or check_if_piece_constraints_violated(newState):
@@ -501,14 +541,43 @@ def algorithm_GAC(currState):
                 continue
             else:
                 return result
-         
-    return result
-
-
-# def GAC_Enforce:
     
+    # Domain Wipeout         
+    return "DWO"
     
-           
+# GAC Algorithm
+def algorithm_GAC(currState):    
+    # Exit Condition
+    # If all variables are assigned
+    if check_if_row_column_constraints_met(currState) and check_if_piece_constraints_met(currState) and check_if_grid_full(currState):
+        return currState
+    
+    # Pick an unassigned variable
+    chosenShip = return_MRV_variable(currState)
+    
+    # Go through all possible spots for the ship
+    for spot in currState.possibleSpots[chosenShip]:
+        # In the new State, insert the ship at the spot
+        newState = copy.deepcopy(currState)
+        insert_ship_at_position(newState, chosenShip, spot)
+        
+        # Prune all values of grid with preprocessing steps
+        run_all_preprocessing(newState)
+        
+        # Go through all the constraints and make sure they aren't violated
+        if check_if_row_column_constraints_violated(newState) or check_if_piece_constraints_violated(newState):
+            # If violated, then try next position
+            continue
+        
+        else:
+            get_all_possible_moves(newState)
+            result = enforce_GAC(newState)
+            # child returns DWO
+            if result == "DWO":
+                continue
+            else:
+                return result
+  
 # FC Algorithm
 # def algorithm_FC(currState):
 #     # If all variables are assigned:
@@ -516,70 +585,43 @@ def algorithm_GAC(currState):
 #         return currState
     
 #     # Pick an unassigned variable
-#     chosenShip = MRV(currState)
+#     chosenShip = return_MRV_variable(currState)
 #     assigned[chosenShip] = True
     
 #     preprocess(currState)
     
 #     for val in currState.possibleSpots[var]:
-#         DWO = False
-
-#         stored_possibleSpots = deepcopy(currState.possibleSpots)
-#         newState = deepcopy(currState.currState.board)
-#         insert_into_board(newState, var, val)  # new board with the ship placed
-#         new_possibleSpots = deepcopy(currState.possibleSpots)
-#         new_possibleSpots[var].remove(val)
-#         child = State(parent=currState, currState.board=newState,
-#                       possibleSpots=new_possibleSpots, dim=currState.dim)
-
-#         # all constraints related to this var
-#         consts = find_constraints(newState, var, val)
-
-#         while consts:
-#             const = consts.pop()
-#             # C has only one unassigned variable X in its scope
-#             if FCCheck(child, const, possibleSpots) == 'DWO':
-#                 DWO = True
-#                 break
-#         if not DWO:  # all constraints consistent
-#             FC(currState, level+1)
-#         currState.possibleSpots = stored_possibleSpots
-#     assigned[var_y][var_x] = False  # undo since we have tried all of V's value
-#     return
     
 
 # BT Algorithm
-def algorithm_BT(currState):
-    # If all variables are assigned:
-    if check_if_grid_full(currState):
-        return currState
+# def algorithm_BT(currState):
+#     # If all variables are assigned:
+#     if check_if_grid_full(currState):
+#         return currState
     
         
     
 # Main Function to process input, run GAC Algorithm, and provide output
 if __name__ == "__main__":
-    # inputConfigurationFile = sys.argv[1]
-    # outputConfigurationFile = sys.argv[2]
+    inputConfigurationFile = sys.argv[1]
+    outputConfigurationFile = sys.argv[2]
     
     # Testing inputs and outputs
-    inputConfigurationFile = "Intro to AI Projects\Battleship Solitaire Game AI\input_easy1.txt"
-    outputConfigurationFile = "Intro to AI Projects\Battleship Solitaire Game AI\solution_easy11.txt"
+    # inputConfigurationFile = "Intro to AI Projects\Battleship Solitaire Game AI\input_test.txt"
+    # outputConfigurationFile = "Intro to AI Projects\Battleship Solitaire Game AI\solution_test11.txt"
     
+    # Initialize state, and process the input
     initialState = State()
     initialState.process_input(inputConfigurationFile)
     
-    state_counter(initialState)
-    pre_process_by_row_and_col(initialState)
-    pre_process_by_piece(initialState)
-    state_counter(initialState)
-    fill_in_submarine_spots(initialState)
-    pre_process_by_row_and_col(initialState)
-    state_counter(initialState)
-    # val = check_if_row_column_constraints_met(initialState)
+    # Prune all values of grid with preprocessing steps
+    run_all_preprocessing(initialState)
+    
+    # Get all the possible moves on the initial state
     get_all_possible_moves(initialState)
-    # return_MRV_variable(initialState)
-    finalState = algorithm_GAC(initialState)
     
     # Running General-Arc-Consistency algorithm on the input
-    #bestMove, value = algorithm_GAC(initialState, 12, True, -inf, inf)
+    finalState = algorithm_GAC(initialState)
+    
+    # Process the output on the final state
     finalState.process_output(outputConfigurationFile)
