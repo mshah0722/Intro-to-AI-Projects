@@ -1,0 +1,13 @@
+Line 11: expected <before : PRP> but got <before : CJS>
+Line 14: expected <Having : VHG> but got <Having : PNP>
+Line 15: expected <thought : VVN> but got <thought : VVD>
+Line 31: expected <overflowing : AJ0-VVG> but got <overflowing : AJ0>
+Line 34: expected <cholesterol : NN1> but got <cholesterol : VVG>
+Line 38: expected <New : AJ0> but got <New : NP0>
+Line 48: expected <Sleep : NN1-VVB> but got <Sleep : PNP>
+Line 57: expected <straight : AV0> but got <straight : AJ0-AV0>
+Line 58: expected <on : AVP> but got <on : PRP>
+Line 110: expected <progressed : VVN-VVD> but got <progressed : VVD-VVN>
+Line 131: expected <sausages : NN2> but got <sausages : NN1>
+Line 165: expected <off : PRP-AVP> but got <off : AVP-PRP>
+Line 169: expected <weary : AJ0> but got <weary : AT0>
